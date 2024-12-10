@@ -1,0 +1,665 @@
+{
+  "last_node_id": 128,
+  "last_link_id": 117,
+  "nodes": [
+    {
+      "id": 57,
+      "type": "StreamDiffusionAccelerationConfig",
+      "pos": [
+        100,
+        362
+      ],
+      "size": [
+        415.8000183105469,
+        106
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ACCELERATION_CONFIG",
+          "type": "ACCELERATION_CONFIG",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StreamDiffusionAccelerationConfig"
+      },
+      "widgets_values": [
+        10,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 78,
+      "type": "DownloadAndLoadFlorence2Model",
+      "pos": [
+        100,
+        1046
+      ],
+      "size": [
+        365.4000244140625,
+        106
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora",
+          "type": "PEFTLORA",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "florence2_model",
+          "type": "FL2MODEL",
+          "links": [
+            31
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DownloadAndLoadFlorence2Model"
+      },
+      "widgets_values": [
+        "microsoft/Florence-2-base-ft",
+        "fp16",
+        "sdpa"
+      ]
+    },
+    {
+      "id": 74,
+      "type": "DownloadAndLoadSAM2RealtimeModel",
+      "pos": [
+        100,
+        786
+      ],
+      "size": [
+        378,
+        130
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "sam2_model",
+          "type": "SAM2MODEL",
+          "links": [
+            28
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DownloadAndLoadSAM2RealtimeModel"
+      },
+      "widgets_values": [
+        "sam2_hiera_tiny.pt",
+        "realtime",
+        "cuda",
+        "fp16"
+      ]
+    },
+    {
+      "id": 73,
+      "type": "ImageCompositeMasked",
+      "pos": [
+        1757.7847900390625,
+        64.11549377441406
+      ],
+      "size": [
+        315,
+        146
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "destination",
+          "type": "IMAGE",
+          "link": 104
+        },
+        {
+          "name": "source",
+          "type": "IMAGE",
+          "link": 24
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 57,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            18
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageCompositeMasked"
+      },
+      "widgets_values": [
+        0,
+        0,
+        true
+      ]
+    },
+    {
+      "id": 52,
+      "type": "PreviewImage",
+      "pos": [
+        2191.791259765625,
+        209.4684600830078
+      ],
+      "size": [
+        349,
+        287
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 18
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 65,
+      "type": "StreamDiffusionModelLoader",
+      "pos": [
+        229.9774627685547,
+        595.7457885742188
+      ],
+      "size": [
+        327.5999755859375,
+        58
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STREAMDIFFUSION_MODEL",
+          "type": "STREAMDIFFUSION_MODEL",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StreamDiffusionModelLoader"
+      },
+      "widgets_values": [
+        "stabilityai/sd-turbo"
+      ]
+    },
+    {
+      "id": 80,
+      "type": "BoundingBoxToCenter",
+      "pos": [
+        1255.031494140625,
+        -98.62102508544922
+      ],
+      "size": [
+        323.2560119628906,
+        48.62699890136719
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "bbox_data",
+          "type": "JSON",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "center_coordinates",
+          "type": "STRING",
+          "links": [
+            71
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BoundingBoxToCenter"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 75,
+      "type": "Sam2RealtimeSegmentation",
+      "pos": [
+        1357.1951904296875,
+        264.7842712402344
+      ],
+      "size": [
+        342.5999755859375,
+        126
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 107
+        },
+        {
+          "name": "sam2_model",
+          "type": "SAM2MODEL",
+          "link": 28
+        },
+        {
+          "name": "coordinates_positive",
+          "type": "STRING",
+          "link": 71,
+          "widget": {
+            "name": "coordinates_positive"
+          },
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROCESSED_IMAGES",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            57
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Sam2RealtimeSegmentation"
+      },
+      "widgets_values": [
+        false,
+        "[[716,219]]",
+        ""
+      ]
+    },
+    {
+      "id": 64,
+      "type": "StreamDiffusionConfig",
+      "pos": [
+        615.800048828125,
+        130
+      ],
+      "size": [
+        519,
+        310
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "STREAMDIFFUSION_MODEL",
+          "link": 21
+        },
+        {
+          "name": "opt_lora_dict",
+          "type": "LORA_DICT",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "opt_acceleration_config",
+          "type": "ACCELERATION_CONFIG",
+          "link": 22,
+          "shape": 7
+        },
+        {
+          "name": "opt_similarity_filter_config",
+          "type": "SIMILARITY_FILTER_CONFIG",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STREAM_MODEL",
+          "type": "STREAM_MODEL",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StreamDiffusionConfig"
+      },
+      "widgets_values": [
+        "39,35,30",
+        "img2img",
+        512,
+        512,
+        "none",
+        1,
+        true,
+        "self",
+        true
+      ]
+    },
+    {
+      "id": 27,
+      "type": "LoadImage",
+      "pos": [
+        41.436004638671875,
+        -7.625392913818359
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            104,
+            106,
+            107,
+            108
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "test_rock.png",
+        "image"
+      ]
+    },
+    {
+      "id": 79,
+      "type": "Florence2Run",
+      "pos": [
+        615.800048828125,
+        570
+      ],
+      "size": [
+        400,
+        376
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 108
+        },
+        {
+          "name": "florence2_model",
+          "type": "FL2MODEL",
+          "link": 31
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null
+        },
+        {
+          "name": "caption",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 2
+        },
+        {
+          "name": "data",
+          "type": "JSON",
+          "links": [
+            32
+          ],
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Florence2Run"
+      },
+      "widgets_values": [
+        "rock",
+        "caption_to_phrase_grounding",
+        "red",
+        false,
+        true,
+        1024,
+        3,
+        true,
+        ""
+      ]
+    },
+    {
+      "id": 61,
+      "type": "StreamDiffusionAccelerationSampler",
+      "pos": [
+        1169.9757080078125,
+        602.666259765625
+      ],
+      "size": [
+        428.4000244140625,
+        218
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "stream_model",
+          "type": "STREAM_MODEL",
+          "link": 19
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 106,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            24
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StreamDiffusionAccelerationSampler"
+      },
+      "widgets_values": [
+        "abstract art",
+        "",
+        50,
+        1.7000000000000002,
+        1
+      ]
+    }
+  ],
+  "links": [
+    [
+      18,
+      73,
+      0,
+      52,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      64,
+      0,
+      61,
+      0,
+      "STREAM_MODEL"
+    ],
+    [
+      21,
+      65,
+      0,
+      64,
+      0,
+      "STREAMDIFFUSION_MODEL"
+    ],
+    [
+      22,
+      57,
+      0,
+      64,
+      2,
+      "ACCELERATION_CONFIG"
+    ],
+    [
+      24,
+      61,
+      0,
+      73,
+      1,
+      "IMAGE"
+    ],
+    [
+      28,
+      74,
+      0,
+      75,
+      1,
+      "SAM2MODEL"
+    ],
+    [
+      31,
+      78,
+      0,
+      79,
+      1,
+      "FL2MODEL"
+    ],
+    [
+      32,
+      79,
+      3,
+      80,
+      0,
+      "JSON"
+    ],
+    [
+      57,
+      75,
+      1,
+      73,
+      2,
+      "MASK"
+    ],
+    [
+      71,
+      80,
+      0,
+      75,
+      2,
+      "STRING"
+    ],
+    [
+      104,
+      27,
+      0,
+      73,
+      0,
+      "IMAGE"
+    ],
+    [
+      106,
+      27,
+      0,
+      61,
+      1,
+      "IMAGE"
+    ],
+    [
+      107,
+      27,
+      0,
+      75,
+      0,
+      "IMAGE"
+    ],
+    [
+      108,
+      27,
+      0,
+      79,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7513148009015781,
+      "offset": [
+        76.81190476248307,
+        32.71955892464928
+      ]
+    }
+  },
+  "version": 0.4
+}
