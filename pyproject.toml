@@ -1,15 +1,15 @@
 [project]
-name = "comfyui-florence2"
+name = "comfyui-florence2-Vision"
 description = "Nodes to use Florence2 VLM for image vision tasks: object detection, captioning, segmentation and ocr"
 version = "1.0.1"
 license = "MIT"
 dependencies = ["transformers>=4.38.0"]
 
 [project.urls]
-Repository = "https://github.com/kijai/ComfyUI-Florence2"
-#  Used by Comfy Registry https://comfyregistry.org
+Repository = "https://github.com/ad-astra-video/ComfyUI-Florence2-Vision"
+#  fork of kijai/ComfyUI-Florence2 with updates to support live video workflows
 
 [tool.comfy]
-PublisherId = "kijai"
-DisplayName = "ComfyUI-Florence2"
+PublisherId = "ad-astra-video"
+DisplayName = "ComfyUI-Florence2-Vision"
 Icon = ""
