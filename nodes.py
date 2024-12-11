@@ -204,7 +204,6 @@ class Florence2Run:
             'region_to_segmentation': '<REGION_TO_SEGMENTATION>',
             'ocr': '<OCR>',
             'ocr_with_region': '<OCR_WITH_REGION>',
-            'docvqa': '<DocVQA>',
         }
         self.uses_text_input = ["referring_expression_segmentation", "caption_to_phrase_grounding", "docvqa", "open_vocabulary_detection"]
         self.text_responses = ["caption", "ocr", "detail_caption", "more_detailed_caption", "region_to_category", "region_to_description", "region_to_ocr"]
@@ -218,6 +217,12 @@ class Florence2Run:
                 "image": ("IMAGE", ),
                 "florence2_model": ("FL2MODEL", ),
                 "text_input": ("STRING", {"default": "", "multiline": True}),
+                "mode": (
+                    [
+                    "on task change",
+                    "every frame"
+                    ], {"default": "on task change"}
+                ),
                 "task": (
                     [ 
                     'region_caption',
@@ -233,7 +238,6 @@ class Florence2Run:
                     'referring_expression_segmentation',
                     'ocr',
                     'ocr_with_region',
-                    'docvqa',
                     ],
                    ),
                 "annotation_color": (
@@ -248,7 +252,6 @@ class Florence2Run:
                 "max_new_tokens": ("INT", {"default": 1024, "min": 1, "max": 4096}),
                 "num_beams": ("INT", {"default": 1, "min": 1, "max": 64}),
                 "do_sample": ("BOOLEAN", {"default": False}),
-                
             }
         }
     
@@ -272,6 +275,7 @@ class Florence2Run:
     
     def skip_encode(self, text_input, task, annotation_color, output_mask_select):
         check = "".join([text_input, task, annotation_color, output_mask_select])
+        
         hash = hashlib.sha256(check.encode('utf-8')).hexdigest()
         if hash != self.last_hash:
             self.last_hash = hash
@@ -280,7 +284,7 @@ class Florence2Run:
         else:
             return True
         
-    def encode(self, image, text_input, florence2_model, task, annotation_color, fill_mask, keep_model_loaded=True, 
+    def encode(self, image, text_input, florence2_model, mode, task, annotation_color, fill_mask, keep_model_loaded=True, 
             num_beams=1, max_new_tokens=1024, do_sample=True, output_mask_select=""):
         
         if self.skip_encode(text_input, task, annotation_color, output_mask_select):
@@ -359,7 +363,7 @@ class Florence2Run:
                 # Determine mask indexes outside the loop
                 if output_mask_select != "":
                     mask_indexes = [n for n in output_mask_select.split(",")]
-                    print(mask_indexes)
+                    #print(mask_indexes)
                 else:
                     mask_indexes = [str(i) for i in range(len(bboxes))]
 
@@ -611,13 +615,14 @@ class BoundingBoxToCenter:
         except (ValueError, SyntaxError, IndexError) as e:
             print(f"Error processing bounding box data: {e}")
             return ("[[0, 0]]",)
-            
+
+
 NODE_CLASS_MAPPINGS = {
     "DownloadAndLoadFlorence2Model": DownloadAndLoadFlorence2Model,
     "DownloadAndLoadFlorence2Lora": DownloadAndLoadFlorence2Lora,
     "Florence2ModelLoader": Florence2ModelLoader,
     "Florence2Run": Florence2Run,
-    "BoundingBoxToCenter": BoundingBoxToCenter,
+    "BoundingBoxToCenter": BoundingBoxToCenter
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "DownloadAndLoadFlorence2Model": "DownloadAndLoadFlorence2Model",
