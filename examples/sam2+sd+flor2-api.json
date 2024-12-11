@@ -34,10 +34,10 @@
   },
   "61": {
     "inputs": {
-      "prompt": "abstract art",
-      "negative_prompt": "",
+      "prompt": "Realistic transformation of a human face into a futuristic silver robot. The face should retain recognizable human features but with metallic silver skin, glowing blue eyes, and subtle mechanical details like circuits and panels integrated seamlessly. The overall look should be sleek and modern, with a shiny chrome finish and a slight reflection of light. The background is neutral and futuristic, softly lit to enhance the metallic details. Artistic and photorealistic style, highly detailed, ultra-sharp focus, 8k resolution.",
+      "negative_prompt": "Blurry details, low quality, cartoonish style, unrealistic features, disfigured face, excessive noise, messy background, overly dark shadows, unnatural proportions, dull or matte finish, extra limbs, distorted facial structure, overly dramatic lighting, grainy texture.",
       "num_inference_steps": 50,
-      "guidance_scale": 1.7000000000000002,
+      "guidance_scale": 1.2000000000000002,
       "delta": 1,
       "stream_model": [
         "64",
@@ -59,7 +59,7 @@
       "mode": "img2img",
       "width": 512,
       "height": 512,
-      "acceleration": "none",
+      "acceleration": "xformers",
       "frame_buffer_size": 1,
       "use_tiny_vae": true,
       "cfg_type": "self",
@@ -129,7 +129,7 @@
         "80",
         0
       ],
-      "coordinates_negative": "",
+      "coordinates_negative": "[[50,50]]",
       "images": [
         "27",
         0
@@ -142,6 +142,18 @@
     "class_type": "Sam2RealtimeSegmentation",
     "_meta": {
       "title": "Sam2RealtimeSegmentation"
+    }
+  },
+  "77": {
+    "inputs": {
+      "mask": [
+        "75",
+        1
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "Convert Mask to Image"
     }
   },
   "78": {
@@ -157,15 +169,16 @@
   },
   "79": {
     "inputs": {
-      "text_input": "blue and red rock",
+      "text_input": "rock",
+      "mode": "on task change",
       "task": "caption_to_phrase_grounding",
       "annotation_color": "red",
-      "fill_mask": false,
-      "keep_model_loaded": true,
-      "max_new_tokens": 1024,
-      "num_beams": 3,
-      "do_sample": true,
       "output_mask_select": "",
+      "fill_mask": false,
+      "keep_model_loaded": 1,
+      "max_new_tokens": 1024,
+      "num_beams": 1,
+      "do_sample": false,
       "image": [
         "27",
         0

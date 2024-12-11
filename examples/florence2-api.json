@@ -1,0 +1,61 @@
+{
+  "4": {
+    "inputs": {
+      "image": "IMG_0384.jpg",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "17": {
+    "inputs": {
+      "model": "microsoft/Florence-2-base",
+      "precision": "bf16",
+      "attention": "sdpa"
+    },
+    "class_type": "DownloadAndLoadFlorence2Model",
+    "_meta": {
+      "title": "DownloadAndLoadFlorence2Model"
+    }
+  },
+  "18": {
+    "inputs": {
+      "text_input": "person, eye, line",
+      "mode": "every frame",
+      "task": "caption_to_phrase_grounding",
+      "annotation_color": "red",
+      "output_mask_select": "",
+      "fill_mask": false,
+      "keep_model_loaded": true,
+      "max_new_tokens": 1024,
+      "num_beams": 1,
+      "do_sample": false,
+      "image": [
+        "4",
+        0
+      ],
+      "florence2_model": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "Florence2Run",
+    "_meta": {
+      "title": "Florence2Run"
+    }
+  },
+  "19": {
+    "inputs": {
+      "images": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  }
+}
