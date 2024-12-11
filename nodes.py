@@ -165,7 +165,7 @@ class Florence2ModelLoader:
         print(f"Loading model from {model_path}")
         print(f"using {attention} for attention")
         with patch("transformers.dynamic_module_utils.get_imports", fixed_get_imports): #workaround for unnecessary flash_attn requirement
-            model = AutoModelForCausalLM.from_pretrained(model_path, attn_implementation=attention, device_map=device, torch_dtype=dtype,trust_remote_code=True)
+            model = AutoModelForCausalLM.from_pretrained(model_path, attn_implementation=attention, device_map=device, torch_dtype=dtype, trust_remote_code=True)
         processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
 
         if lora is not None:
@@ -196,12 +196,21 @@ class Florence2Run:
             'detailed_caption': '<DETAILED_CAPTION>',
             'more_detailed_caption': '<MORE_DETAILED_CAPTION>',
             'caption_to_phrase_grounding': '<CAPTION_TO_PHRASE_GROUNDING>',
+            'open_vocabulary_detection': '<OPEN_VOCABULARY_DETECTION>',
+            'region_to_category': '<REGION_TO_CATEGORY>',
+            'region_to_description': '<REGION_TO_DESCRIPTION>',
+            'region_to_ocr': '<REGION_TO_OCR>',
             'referring_expression_segmentation': '<REFERRING_EXPRESSION_SEGMENTATION>',
+            'region_to_segmentation': '<REGION_TO_SEGMENTATION>',
             'ocr': '<OCR>',
             'ocr_with_region': '<OCR_WITH_REGION>',
             'docvqa': '<DocVQA>',
         }
-
+        self.uses_text_input = ["referring_expression_segmentation", "caption_to_phrase_grounding", "docvqa", "open_vocabulary_detection"]
+        self.text_responses = ["caption", "ocr", "detail_caption", "more_detailed_caption", "region_to_category", "region_to_description", "region_to_ocr"]
+        self.includes_bbox = ["region_caption", "dense_region_caption", "caption_to_phrase_grounding", "open_vocabulary_detection"]
+        self.includes_polygons = ["region_expression_segmentation", "region_to_segmentation"]
+        
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -218,28 +227,28 @@ class Florence2Run:
                     'detailed_caption',
                     'more_detailed_caption',
                     'caption_to_phrase_grounding',
+                    'open_vocabulary_detection',
+                    'region_to_category',
+                    'region_to_description',
                     'referring_expression_segmentation',
                     'ocr',
                     'ocr_with_region',
                     'docvqa',
-                    'prompt_gen_tags',
-                    'prompt_gen_mixed_caption',
-                    'prompt_gen_analyze',
-                    'prompt_gen_mixed_caption_plus',
                     ],
                    ),
                 "annotation_color": (
                     ['red','orange','green','purple','brown','pink','olive','cyan','blue',
                     'lime','indigo','violet','aqua','magenta','gold','tan','skyblue'], {"default": "red"}
                    ),
-                "fill_mask": ("BOOLEAN", {"default": False}),
+                "keep_model_loaded": ("BOOLEAN", {"default": True}),
             },
             "optional": {
-                "keep_model_loaded": ("BOOLEAN", {"default": False}),
+                "output_mask_select": ("STRING", {"default": ""}),
+                "fill_mask": ("BOOLEAN", {"default": False}),
                 "max_new_tokens": ("INT", {"default": 1024, "min": 1, "max": 4096}),
                 "num_beams": ("INT", {"default": 1, "min": 1, "max": 64}),
                 "do_sample": ("BOOLEAN", {"default": False}),
-                "output_mask_select": ("STRING", {"default": ""}),
+                
             }
         }
     
@@ -266,7 +275,7 @@ class Florence2Run:
         hash = hashlib.sha256(check.encode('utf-8')).hexdigest()
         if hash != self.last_hash:
             self.last_hash = hash
-            print(hash)
+            print("hashed monitored inputs: ", hash)
             return False
         else:
             return True
@@ -287,10 +296,7 @@ class Florence2Run:
         
         task_prompt = self.prompts.get(task, '<OD>')
 
-        if (task not in ['referring_expression_segmentation', 'caption_to_phrase_grounding', 'docvqa']) and text_input:
-            raise ValueError("Text input (prompt) is only supported for 'referring_expression_segmentation', 'caption_to_phrase_grounding', and 'docvqa'")
-
-        if text_input != "":
+        if task in self.uses_text_input:
             prompt = task_prompt + " " + text_input
         else:
             prompt = task_prompt
@@ -306,8 +312,6 @@ class Florence2Run:
             image_pil = F.to_pil_image(img)
             start = time.time()
             inputs = processor(text=prompt, images=image_pil, return_tensors="pt").to(dtype).to(self.device)
-            print(f"image inputs took: {int((time.time()-start)*1000)} millisecods")
-            
             print(f"processor took: {int((time.time()-start)*1000)} millisecods")
             start = time.time()
             generated_ids = self.process(
@@ -342,13 +346,14 @@ class Florence2Run:
             start = time.time()
             parsed_answer = processor.post_process_generation(results, task=task_prompt, image_size=(W, H))
             print(f"post process took: {int((time.time()-start)*1000)} milliseconds")
-            
-            if task == 'region_caption' or task == 'dense_region_caption' or task == 'caption_to_phrase_grounding' or task == 'region_proposal':
+            #print(str(parsed_answer))
+            if task in self.includes_bbox:
                 fig, ax = plt.subplots(figsize=(W / 100, H / 100), dpi=100)
                 fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
                 ax.imshow(image_pil)
                 bboxes = parsed_answer[task_prompt]['bboxes']
-                labels = parsed_answer[task_prompt]['labels']
+                labels_key = "labels" if not task == "open_vocabulary_detection" else "bboxes_labels"
+                labels = parsed_answer[task_prompt][labels_key]
 
                 mask_indexes = []
                 # Determine mask indexes outside the loop
@@ -445,7 +450,7 @@ class Florence2Run:
     
                 plt.close(fig)
 
-            elif task == 'referring_expression_segmentation':
+            elif task in self.includes_polygons:
                 # Create a new black image
                 mask_image = Image.new('RGB', (W, H), 'black')
                 mask_draw = ImageDraw.Draw(mask_image)
@@ -543,25 +548,8 @@ class Florence2Run:
                 mask_tensor = mask_tensor.repeat(1, 1, 1, 3)
                 mask_tensor = mask_tensor[:, :, :, 0]
                 out_masks.append(mask_tensor)
-
+                
                 pbar.update(1)
-            
-            elif task == 'docvqa':
-                if text_input == "":
-                    raise ValueError("Text input (prompt) is required for 'docvqa'")
-                prompt = "<DocVQA> " + text_input
-
-                inputs = processor(text=prompt, images=image_pil, return_tensors="pt", do_rescale=False).to(dtype).to(self.device)
-                generated_ids = model.generate(
-                    input_ids=inputs["input_ids"],
-                    pixel_values=inputs["pixel_values"],
-                    max_new_tokens=max_new_tokens,
-                    do_sample=do_sample,
-                    num_beams=num_beams,
-                )
-
-                results = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
-                clean_results = results.replace('</s>', '').replace('<s>', '')
                 
                 if len(image) == 1:
                     out_results = clean_results
