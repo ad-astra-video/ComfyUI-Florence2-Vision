@@ -208,7 +208,7 @@ class Florence2Run:
         self.uses_text_input = ["referring_expression_segmentation", "caption_to_phrase_grounding", "docvqa", "open_vocabulary_detection"]
         self.text_responses = ["caption", "ocr", "detail_caption", "more_detailed_caption", "region_to_category", "region_to_description", "region_to_ocr"]
         self.includes_bbox = ["region_caption", "dense_region_caption", "caption_to_phrase_grounding", "open_vocabulary_detection"]
-        self.includes_polygons = ["region_expression_segmentation", "region_to_segmentation"]
+        self.includes_polygons = ["referring_expression_segmentation", "region_to_segmentation"]
         
     @classmethod
     def INPUT_TYPES(s):
@@ -287,7 +287,7 @@ class Florence2Run:
     def encode(self, image, text_input, florence2_model, mode, task, annotation_color, fill_mask, keep_model_loaded=True, 
             num_beams=1, max_new_tokens=1024, do_sample=True, output_mask_select=""):
         
-        if self.skip_encode(text_input, task, annotation_color, output_mask_select):
+        if mode == "on task change" and self.skip_encode(text_input, task, annotation_color, output_mask_select):
             return (image, torch.zeros((1,64,64), dtype=torch.float32, device="cpu"), self.last_caption, self.last_data)
         
         _, height, width, _ = image.shape
@@ -351,7 +351,53 @@ class Florence2Run:
             parsed_answer = processor.post_process_generation(results, task=task_prompt, image_size=(W, H))
             print(f"post process took: {int((time.time()-start)*1000)} milliseconds")
             #print(str(parsed_answer))
-            if task in self.includes_bbox:
+            if task in self.includes_polygons:
+                # Create a new black image
+                mask_image = Image.new('RGB', (W, H), 'black')
+                mask_draw = ImageDraw.Draw(mask_image)
+  
+                predictions = parsed_answer[task_prompt]
+    
+                # Iterate over polygons and labels  
+                for polygons, label in zip(predictions['polygons'], predictions['labels']):
+
+                    for _polygon in polygons:  
+                        _polygon = np.array(_polygon).reshape(-1, 2)
+                        # Clamp polygon points to image boundaries
+                        _polygon = np.clip(_polygon, [0, 0], [W - 1, H - 1])
+                        if len(_polygon) < 3:  
+                            print('Invalid polygon:', _polygon)
+                            continue  
+                        
+                        _polygon = _polygon.reshape(-1).tolist()
+                        
+                        # Draw the polygon
+                        if fill_mask:
+                            overlay = Image.new('RGBA', image_pil.size, (255, 255, 255, 0))
+                            image_pil = image_pil.convert('RGBA')
+                            draw = ImageDraw.Draw(overlay)
+                            color_with_opacity = ImageColor.getrgb(annotation_color) + (180,)
+                            draw.polygon(_polygon, outline=annotation_color, fill=color_with_opacity, width=3)
+                            image_pil = Image.alpha_composite(image_pil, overlay)
+                        else:
+                            draw = ImageDraw.Draw(image_pil)
+                            draw.polygon(_polygon, outline=annotation_color, width=3)
+
+                        #draw mask
+                        mask_draw.polygon(_polygon, outline="white", fill="white")
+                        
+                image_tensor = F.to_tensor(image_pil)
+                image_tensor = image_tensor[:3, :, :].unsqueeze(0).permute(0, 2, 3, 1).cpu().float() 
+                out.append(image_tensor)
+
+                mask_tensor = F.to_tensor(mask_image)
+                mask_tensor = mask_tensor.unsqueeze(0).permute(0, 2, 3, 1).cpu().float()
+                mask_tensor = mask_tensor.mean(dim=0, keepdim=True)
+                mask_tensor = mask_tensor.repeat(1, 1, 1, 3)
+                mask_tensor = mask_tensor[:, :, :, 0]
+                out_masks.append(mask_tensor)
+                pbar.update(1)
+            elif task in self.includes_bbox:
                 fig, ax = plt.subplots(figsize=(W / 100, H / 100), dpi=100)
                 fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
                 ax.imshow(image_pil)
@@ -453,54 +499,7 @@ class Florence2Run:
                 pbar.update(1)
     
                 plt.close(fig)
-
-            elif task in self.includes_polygons:
-                # Create a new black image
-                mask_image = Image.new('RGB', (W, H), 'black')
-                mask_draw = ImageDraw.Draw(mask_image)
-  
-                predictions = parsed_answer[task_prompt]
-    
-                # Iterate over polygons and labels  
-                for polygons, label in zip(predictions['polygons'], predictions['labels']):
-
-                    for _polygon in polygons:  
-                        _polygon = np.array(_polygon).reshape(-1, 2)
-                        # Clamp polygon points to image boundaries
-                        _polygon = np.clip(_polygon, [0, 0], [W - 1, H - 1])
-                        if len(_polygon) < 3:  
-                            print('Invalid polygon:', _polygon)
-                            continue  
-                        
-                        _polygon = _polygon.reshape(-1).tolist()
-                        
-                        # Draw the polygon
-                        if fill_mask:
-                            overlay = Image.new('RGBA', image_pil.size, (255, 255, 255, 0))
-                            image_pil = image_pil.convert('RGBA')
-                            draw = ImageDraw.Draw(overlay)
-                            color_with_opacity = ImageColor.getrgb(annotation_color) + (180,)
-                            draw.polygon(_polygon, outline=annotation_color, fill=color_with_opacity, width=3)
-                            image_pil = Image.alpha_composite(image_pil, overlay)
-                        else:
-                            draw = ImageDraw.Draw(image_pil)
-                            draw.polygon(_polygon, outline=annotation_color, width=3)
-
-                        #draw mask
-                        mask_draw.polygon(_polygon, outline="white", fill="white")
-                        
-                image_tensor = F.to_tensor(image_pil)
-                image_tensor = image_tensor[:3, :, :].unsqueeze(0).permute(0, 2, 3, 1).cpu().float() 
-                out.append(image_tensor)
-
-                mask_tensor = F.to_tensor(mask_image)
-                mask_tensor = mask_tensor.unsqueeze(0).permute(0, 2, 3, 1).cpu().float()
-                mask_tensor = mask_tensor.mean(dim=0, keepdim=True)
-                mask_tensor = mask_tensor.repeat(1, 1, 1, 3)
-                mask_tensor = mask_tensor[:, :, :, 0]
-                out_masks.append(mask_tensor)
-                pbar.update(1)
-
+                
             elif task == 'ocr_with_region':
                 try:
                     font = ImageFont.load_default().font_variant(size=24)
@@ -615,7 +614,6 @@ class BoundingBoxToCenter:
         except (ValueError, SyntaxError, IndexError) as e:
             print(f"Error processing bounding box data: {e}")
             return ("[[0, 0]]",)
-
 
 NODE_CLASS_MAPPINGS = {
     "DownloadAndLoadFlorence2Model": DownloadAndLoadFlorence2Model,
