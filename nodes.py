@@ -399,7 +399,6 @@ class Florence2Run:
             # Optionally add the mask
             if fill_mask:
                 if str(index) in mask_indexes or labels[index] in mask_indexes:
-                    print("match index:", str(index), "in mask_indexes:", mask_indexes)
                     mask_draw.rectangle([x0, y0, x1, y1], fill=(255, 255, 255))
         
         if fill_mask:
