@@ -181,6 +181,7 @@ class Florence2ModelLoader:
         print(f"using {attention} for attention")
         with patch("transformers.dynamic_module_utils.get_imports", fixed_get_imports): #workaround for unnecessary flash_attn requirement
             model = AutoModelForCausalLM.from_pretrained(model_path, attn_implementation=attention, torch_dtype=dtype,trust_remote_code=True).to(device)
+            print(dict(model.vision_tower))
         if compile:
             model.language_model.forward = torch.compile(model.language_model.forward)
             model.generate(input_ids=model.dummy_inputs["input_ids"].to(device))
@@ -348,7 +349,7 @@ class Florence2Run:
                         overlay = Image.new('RGBA', image_pil.size, (255, 255, 255, 0))
                         image_pil = image_pil.convert('RGBA')
                         draw = ImageDraw.Draw(overlay)
-                        color_with_opacity = ImageColor.getrgb(annotation_color) + (180,)
+                        color_with_opacity = annotation_color + (180,)
                         draw.polygon(_polygon, outline=annotation_color, fill=color_with_opacity, width=3)
                         image_pil = Image.alpha_composite(image_pil, overlay)
                     else:
