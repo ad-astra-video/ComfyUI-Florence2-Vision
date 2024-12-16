@@ -233,7 +233,7 @@ class Florence2Run:
         }
         self.uses_text_input = ["referring_expression_segmentation", "caption_to_phrase_grounding", "open_vocabulary_detection"]
         self.text_responses = ["caption", "ocr", "detail_caption", "more_detailed_caption", "region_to_category", "region_to_description", "region_to_ocr"]
-        self.includes_bbox = ["region_caption", "dense_region_caption", "caption_to_phrase_grounding", "open_vocabulary_detection", "ocr_with_region"]
+        self.includes_bbox = ["region_caption", "dense_region_caption", "caption_to_phrase_grounding", "open_vocabulary_detection", "ocr_with_region", "region_proposal"]
         self.includes_polygons = ["referring_expression_segmentation", "region_to_segmentation"]
         self.colors_rgb = {
             "red": (255, 0, 0),
@@ -325,12 +325,13 @@ class Florence2Run:
             )
 
     def process_polygons_and_labels(self, image_pil, polygons, labels, annotate_image=False, fill_mask=False, annotation_color=(255, 0, 0)):
+        W, H = image_pil.size
         # Create a new black image
         mask_image = Image.new('RGB', (W, H), 'black')
         mask_draw = ImageDraw.Draw(mask_image)
         
         # Iterate over polygons and labels  
-        for polygons, label in zip(predictions['polygons'], predictions['labels']):
+        for polygons, label in zip(polygons, labels):
             for _polygon in polygons:  
                 _polygon = np.array(_polygon).reshape(-1, 2)
                 # Clamp polygon points to image boundaries
@@ -370,7 +371,7 @@ class Florence2Run:
         return annotated_image_tensor, mask_tensor
                 
     def process_bboxes_and_labels(self, image_pil, boxes, labels, mask_indexes, annotate_image=False, fill_mask=False, annotation_color=(255, 0, 0), exclude_labels=False):
-        W, H = image_pil.size  # Image dimensions
+        W, H = image_pil.size
         
         # Initialize mask_layer only if needed
         if fill_mask:
@@ -539,7 +540,7 @@ class Florence2Run:
                 
                 if annotate_image or fill_mask:
                     out_tensor, out_mask = self.process_polygons_and_labels(image_pil, 
-                                                                            predications['polygons'], 
+                                                                            predictions['polygons'], 
                                                                             predictions['labels'], 
                                                                             annotate_image, 
                                                                             fill_mask, 
