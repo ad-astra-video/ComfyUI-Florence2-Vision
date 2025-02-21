@@ -98,14 +98,7 @@ class DownloadAndLoadFlorence2Model:
             model.language_model.forward = torch.compile(model.language_model.forward)
             model.generate(input_ids=model.dummy_inputs["input_ids"].to(device))
             
-        processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-        fast_img_proc = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224-in21k", 
-                                                            size=processor.image_processor.size, 
-                                                            image_mean=processor.image_processor.image_mean, 
-                                                            image_std=processor.image_processor.image_std,
-                                                            image_seq_length=processor.image_processor.image_seq_length,
-                                                            use_fast=True)
-        processor.image_processor = fast_img_proc
+        processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True, use_fast=True)
         
         if lora is not None:
             from peft import PeftModel
@@ -186,14 +179,7 @@ class Florence2ModelLoader:
             model.language_model.forward = torch.compile(model.language_model.forward)
             model.generate(input_ids=model.dummy_inputs["input_ids"].to(device))
             
-        processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
-        fast_img_proc = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224-in21k", 
-                                                            size=processor.image_processor.size, 
-                                                            image_mean=processor.image_processor.image_mean, 
-                                                            image_std=processor.image_processor.image_std,
-                                                            image_seq_length=processor.image_processor.image_seq_length,
-                                                            use_fast=True)
-        processor.image_processor = fast_img_proc
+        processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True, use_fast=True)
         
         if lora is not None:
             from peft import PeftModel
