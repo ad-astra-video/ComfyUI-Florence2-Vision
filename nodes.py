@@ -41,6 +41,23 @@ script_directory = os.path.dirname(os.path.abspath(__file__))
 
 from transformers import AutoModelForCausalLM, AutoProcessor, AutoImageProcessor
 
+
+def track_processing_stats(self, processing_stats, task, time):
+    if task == "preprocess":
+        processing_stats["preprocess_ms"] = time
+    elif task == "generate":
+        processing_stats["generate_ms"] = time - processing_stats["total_ms"]
+    elif task == "postprocess":
+        processing_stats["postprocess_ms"] = time - processing_stats["total_ms"]
+    elif task == "annotate":
+        processing_stats["annotate_ms"] = time - processing_stats["total_ms"]
+        processing_stats.pop("total_ms")
+    
+    #track total to get time by step and add at end for final total
+    processing_stats["total_ms"] = time
+    
+    return processing_stats
+
 class DownloadAndLoadFlorence2Model:
     @classmethod
     def INPUT_TYPES(s):
@@ -51,6 +68,8 @@ class DownloadAndLoadFlorence2Model:
                     'microsoft/Florence-2-base-ft',
                     'microsoft/Florence-2-large',
                     'microsoft/Florence-2-large-ft',
+                    'MiaoshouAI/Florence-2-base-PromptGen-v2.0',
+                    'MiaoshouAI/Florence-2-large-PromptGen-v2.0'
                     ],
                     {
                     "default": 'microsoft/Florence-2-base-ft'
@@ -194,6 +213,151 @@ class Florence2ModelLoader:
    
         return (florence2_model,)
     
+
+class Florence2RunPromptGenFromImage:
+    def __init__(self):
+        self.last_hash = ""
+        self.last_prompt_gen = []
+        self.devcice = mm.get_torch_device()
+        self.offload_device = mm.unet_offload_device()
+        self.prompt_gen_prompts = {
+            "analyze": "<ANALYZE>",
+            "generate_tages": "<GENERATE_TAGS>",
+            "mixed_caption": "<MIX_CAPTION>",
+            "mixed_caption_plus": "<MIX_CAPTION_PLUS>",
+            "caption": "<CAPTION>",
+            "detailed_caption": "<DETAILED_CAPTION>",
+            "more_detailed_caption": "<MORE_DETAILED_CAPTION>",
+        }
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE", ),
+                "florence2_model": ("FL2MODEL", ),
+                "mode": (
+                    [
+                    "on task change",
+                    "every frame"
+                    ], {"default": "on task change"}
+                ),
+                "task": (
+                    [ 
+                    'analyze',
+                    'generate_tags',
+                    'mixed_caption',
+                    'mixed_caption_plus',
+                    'caption',
+                    'detailed_caption',
+                    'more_detailed_caption',
+                    ],
+                   ),
+                "keep_model_loaded": ("BOOLEAN", {"default": True}),
+            },
+            "optional": {
+                "max_new_tokens": ("INT", {"default": 4096, "min": 1, "max": 4096}),
+                "num_beams": ("INT", {"default": 1, "min": 1, "max": 64}),
+                "do_sample": ("BOOLEAN", {"default": False}),
+            }
+        }
+    
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES =("analyze_info", "tags", "caption", "mixed_caption_t5", "mixed_caption_clip_l", "processing_stats") 
+    FUNCTION = "encode"
+    CATEGORY = "Florence2"
+
+    def process(self, model, input_ids, pixel_values, max_new_tokens, do_sample, num_beams):
+        kwargs = {
+            "max_new_tokens": max_new_tokens,
+            "do_sample": do_sample,
+            "num_beams": num_beams,
+        }
+        
+        return model.generate(
+                input_ids=input_ids,
+                pixel_values=pixel_values,
+                **kwargs,
+            )
+    
+    def skip_encode(self, image, task):
+        image_hash = hashlib.sha256(image.numpy().tobytes()).hexdigest()
+        check = "".join([image_hash, task])
+        
+        hash = hashlib.sha256(check.encode('utf-8')).hexdigest()
+        if hash != self.last_hash:
+            self.last_hash = hash
+            print("hashed monitored inputs: ", hash)
+            return False
+        else:
+            return True
+    
+        
+    def encode(self, image, florence2_model, mode, task, keep_model_loaded=True, num_beams=1, max_new_tokens=1024, do_sample=True):
+        
+        if mode == "on task change" and self.skip_encode(image, task):
+            return self.last_prompt_gen.append(self.processing_stats)
+        
+        _, height, width, _ = image.shape
+        processor = florence2_model['processor']
+        model = florence2_model['model']
+        dtype = florence2_model['dtype']
+        model.to(self.device)
+        
+        task_prompt = self.prompt_gen_prompts.get(task, '<CAPTION>')
+        image = image.permute(0, 3, 1, 2)
+        
+        out_analyze_info = ""
+        out_tags = ""
+        out_mixed_caption_t5 = ""
+        out_mixed_caption_clip_l = ""
+        out_caption = ""
+        processing_stats = {}
+        for img in image:
+            start = time.time()
+            image_pil = F.to_pil_image(img)
+            inputs = processor(text=task_prompt, images=image_pil, return_tensors="pt").to(dtype).to(self.device)
+            self.track_processing_stats(processing_stats, "preprocess", int((time.time()-start)*1000))
+            
+            generated_ids = self.process(
+                model,
+                inputs["input_ids"],
+                inputs["pixel_values"],
+                max_new_tokens,
+                do_sample,
+                num_beams,
+            )
+            
+            self.track_processing_stats(processing_stats, "generate", int((time.time()-start)*1000))
+            
+            results = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+            
+            # cleanup the special tokens from the final list
+            clean_results = str(results)
+            clean_results = clean_results.replace('</s>', '')
+            clean_results = clean_results.replace('<s>', '')
+
+            match task:
+                case 'analyze':
+                    out_analyze_info = clean_results
+                case 'generate_tags':
+                    out_tags = clean_results
+                case 'mixed_caption':
+                    out_mixed_caption_t5 = clean_results
+                    out_mixed_caption_clip_l = clean_results
+                case 'mixed_caption_plus':
+                    out_mixed_caption_t5 = clean_results
+                    out_mixed_caption_clip_l = clean_results 
+                case _:
+                    out_caption = clean_results
+
+            self.track_processing_stats(processing_stats, "total", int((time.time()-start)*1000))
+            
+        self.last_prompt_gen = (out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l)
+        
+        return (out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l, json.dumps(processing_stats))
+
+
 class Florence2Run:
     def __init__(self):
         self.last_hash = ""
@@ -217,6 +381,15 @@ class Florence2Run:
             'region_to_segmentation': '<REGION_TO_SEGMENTATION>',
             'ocr': '<OCR>',
             'ocr_with_region': '<OCR_WITH_REGION>',
+        }
+        self.prompt_gen_prompts = {
+            "analyze": "<ANALYZE>",
+            "generate_tages": "<GENERATE_TAGS>",
+            "mixed_caption": "<MIXED_CAPTION>",
+            "mixed_caption_plus": "<MIXED_CAPTION_PLUS>",
+            "caption": "<CAPTION>",
+            "detailed_caption": "<DETAILED_CAPTION>",
+            "more_detailed_caption": "<MORE_DETAILED_CAPTION>",
         }
         self.uses_text_input = ["referring_expression_segmentation", "caption_to_phrase_grounding", "open_vocabulary_detection"]
         self.text_responses = ["caption", "ocr", "detail_caption", "more_detailed_caption", "region_to_category", "region_to_description", "region_to_ocr"]
@@ -436,22 +609,6 @@ class Florence2Run:
             return False
         else:
             return True
-    
-    def track_processing_stats(self, processing_stats, task, time):
-        if task == "preprocess":
-            processing_stats["preprocess_ms"] = time
-        elif task == "generate":
-            processing_stats["generate_ms"] = time - processing_stats["total_ms"]
-        elif task == "postprocess":
-            processing_stats["postprocess_ms"] = time - processing_stats["total_ms"]
-        elif task == "annotate":
-            processing_stats["annotate_ms"] = time - processing_stats["total_ms"]
-            processing_stats.pop("total_ms")
-        
-        #track total to get time by step and add at end for final total
-        processing_stats["total_ms"] = time
-        
-        return processing_stats
         
     def encode(self, image, text_input, florence2_model, mode, task, annotation_color, fill_mask=False, annotate_image=False, keep_model_loaded=True, 
             num_beams=1, max_new_tokens=1024, do_sample=True, output_mask_select=""):
@@ -634,6 +791,7 @@ NODE_CLASS_MAPPINGS = {
     "DownloadAndLoadFlorence2Lora": DownloadAndLoadFlorence2Lora,
     "Florence2ModelLoader": Florence2ModelLoader,
     "Florence2Run": Florence2Run,
+    "Florence2RunPromptGenFromImage": Florence2RunPromptGenFromImage,
     "BoundingBoxToCenter": BoundingBoxToCenter
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -641,5 +799,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "DownloadAndLoadFlorence2Lora": "DownloadAndLoadFlorence2Lora",
     "Florence2ModelLoader": "Florence2ModelLoader",
     "Florence2Run": "Florence2Run",
+    "Florence2RunPromptGenFromImage": "Florence2RunPromptGenFromImage",
     "BoundingBoxToCenter": "BBOX to Center Point"
 }
