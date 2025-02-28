@@ -256,6 +256,8 @@ class Florence2RunPromptGenFromImage:
                 "keep_model_loaded": ("BOOLEAN", {"default": True}),
             },
             "optional": {
+                "prefix_prompt": ("STRING", {"default": ""}),
+                "append_to_prompt": ("STRING", {"default": ""}),
                 "max_new_tokens": ("INT", {"default": 4096, "min": 1, "max": 4096}),
                 "num_beams": ("INT", {"default": 1, "min": 1, "max": 64}),
                 "do_sample": ("BOOLEAN", {"default": False}),
@@ -293,7 +295,7 @@ class Florence2RunPromptGenFromImage:
             return True
     
         
-    def encode(self, image, florence2_model, mode, task, keep_model_loaded=True, num_beams=1, max_new_tokens=1024, do_sample=True):
+    def encode(self, image, florence2_model, mode, task, keep_model_loaded=True, prefix_prompt="", append_to_prompt="", num_beams=1, max_new_tokens=1024, do_sample=True):
         
         if mode == "on task change" and self.skip_encode(image, task):
             return self.last_prompt_gen.append(self.processing_stats)
@@ -336,7 +338,8 @@ class Florence2RunPromptGenFromImage:
             clean_results = str(results)
             clean_results = clean_results.replace('</s>', '')
             clean_results = clean_results.replace('<s>', '')
-
+            clean_results = ''.join([prefix_prompt, clean_results, append_to_prompt])
+            
             match task:
                 case 'analyze':
                     out_analyze_info = clean_results
