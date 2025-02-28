@@ -42,7 +42,7 @@ script_directory = os.path.dirname(os.path.abspath(__file__))
 from transformers import AutoModelForCausalLM, AutoProcessor, AutoImageProcessor
 
 
-def track_processing_stats(self, processing_stats, task, time):
+def track_processing_stats(processing_stats, task, time):
     if task == "preprocess":
         processing_stats["preprocess_ms"] = time
     elif task == "generate":
@@ -218,7 +218,7 @@ class Florence2RunPromptGenFromImage:
     def __init__(self):
         self.last_hash = ""
         self.last_prompt_gen = []
-        self.devcice = mm.get_torch_device()
+        self.device = mm.get_torch_device()
         self.offload_device = mm.unet_offload_device()
         self.prompt_gen_prompts = {
             "analyze": "<ANALYZE>",
@@ -317,7 +317,7 @@ class Florence2RunPromptGenFromImage:
             start = time.time()
             image_pil = F.to_pil_image(img)
             inputs = processor(text=task_prompt, images=image_pil, return_tensors="pt").to(dtype).to(self.device)
-            self.track_processing_stats(processing_stats, "preprocess", int((time.time()-start)*1000))
+            track_processing_stats(processing_stats, "preprocess", int((time.time()-start)*1000))
             
             generated_ids = self.process(
                 model,
@@ -328,7 +328,7 @@ class Florence2RunPromptGenFromImage:
                 num_beams,
             )
             
-            self.track_processing_stats(processing_stats, "generate", int((time.time()-start)*1000))
+            track_processing_stats(processing_stats, "generate", int((time.time()-start)*1000))
             
             results = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
             
@@ -351,7 +351,7 @@ class Florence2RunPromptGenFromImage:
                 case _:
                     out_caption = clean_results
 
-            self.track_processing_stats(processing_stats, "total", int((time.time()-start)*1000))
+            track_processing_stats(processing_stats, "total", int((time.time()-start)*1000))
             
         self.last_prompt_gen = (out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l)
         
@@ -643,7 +643,7 @@ class Florence2Run:
             start = time.time()
             image_pil = F.to_pil_image(img)
             inputs = processor(text=prompt, images=image_pil, return_tensors="pt").to(dtype).to(self.device)
-            self.track_processing_stats(processing_stats, "preprocess", int((time.time()-start)*1000))
+            track_processing_stats(processing_stats, "preprocess", int((time.time()-start)*1000))
             
             generated_ids = self.process(
                 model,
@@ -654,7 +654,7 @@ class Florence2Run:
                 num_beams,
             )
             
-            self.track_processing_stats(processing_stats, "generate", int((time.time()-start)*1000))
+            track_processing_stats(processing_stats, "generate", int((time.time()-start)*1000))
             
             results = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
             
@@ -676,7 +676,7 @@ class Florence2Run:
 
             W, H = image_pil.size
             parsed_answer = processor.post_process_generation(results, task=task_prompt, image_size=(W, H))
-            self.track_processing_stats(processing_stats, "postprocess", int((time.time()-start)*1000))
+            track_processing_stats(processing_stats, "postprocess", int((time.time()-start)*1000))
             #print(results)
             #print(parsed_answer)
             if task in self.includes_polygons:
@@ -730,8 +730,8 @@ class Florence2Run:
                 
                 pbar.update(1)
             
-            self.track_processing_stats(processing_stats, "annotate", int((time.time()-start)*1000))
-            self.track_processing_stats(processing_stats, "total", int((time.time()-start)*1000))
+            track_processing_stats(processing_stats, "annotate", int((time.time()-start)*1000))
+            track_processing_stats(processing_stats, "total", int((time.time()-start)*1000))
             
         #final processing for outputs
         if len(out) > 0:
