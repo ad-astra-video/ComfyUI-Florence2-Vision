@@ -16,7 +16,7 @@ from pathlib import Path
 import time
 import json
 import hashlib
-
+from transformers.image_utils import load_image
 #workaround for unnecessary flash_attn requirement
 from unittest.mock import patch
 from transformers.dynamic_module_utils import get_imports
@@ -213,7 +213,27 @@ class Florence2ModelLoader:
    
         return (florence2_model,)
     
+class LoadImageFromURL:
+    def __init__(self):
+        pass
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "url": ("STRING", ),
+            },
+            "optional": {}
+        }
+    
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES =("image",) 
+    FUNCTION = "download_image"
+    CATEGORY = "image"
 
+    def download_image(self, url):
+        image = load_image(url).convert("RGB")
+        image_tensor = T.ToTensor()(image).unsqueeze(0)
+        return (image_tensor,)
 class Florence2RunPromptGenFromImage:
     def __init__(self):
         self.last_hash = ""
@@ -300,14 +320,15 @@ class Florence2RunPromptGenFromImage:
         if mode == "on task change" and self.skip_encode(image, task):
             return self.last_prompt_gen.append(self.processing_stats)
         
-        _, height, width, _ = image.shape
         processor = florence2_model['processor']
         model = florence2_model['model']
         dtype = florence2_model['dtype']
         model.to(self.device)
         
         task_prompt = self.prompt_gen_prompts.get(task, '<CAPTION>')
-        image = image.permute(0, 3, 1, 2)
+        print(image.shape)
+        if image.shape[3] < 5:
+            image = image.permute(0, 3, 1, 2)
         
         out_analyze_info = ""
         out_tags = ""
@@ -339,7 +360,7 @@ class Florence2RunPromptGenFromImage:
             clean_results = clean_results.replace('</s>', '')
             clean_results = clean_results.replace('<s>', '')
             clean_results = ''.join([prefix_prompt, clean_results, append_to_prompt])
-            
+
             match task:
                 case 'analyze':
                     out_analyze_info = clean_results
@@ -795,7 +816,8 @@ NODE_CLASS_MAPPINGS = {
     "Florence2ModelLoader": Florence2ModelLoader,
     "Florence2Run": Florence2Run,
     "Florence2RunPromptGenFromImage": Florence2RunPromptGenFromImage,
-    "BoundingBoxToCenter": BoundingBoxToCenter
+    "BoundingBoxToCenter": BoundingBoxToCenter,
+    "LoadImageFromURL": LoadImageFromURL
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "DownloadAndLoadFlorence2Model": "DownloadAndLoadFlorence2Model",
@@ -803,5 +825,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "Florence2ModelLoader": "Florence2ModelLoader",
     "Florence2Run": "Florence2Run",
     "Florence2RunPromptGenFromImage": "Florence2RunPromptGenFromImage",
-    "BoundingBoxToCenter": "BBOX to Center Point"
+    "BoundingBoxToCenter": "BBOX to Center Point",
+    "LoadImageFromURL": "LoadImageFromURL"
 }
