@@ -377,7 +377,7 @@ class Florence2RunPromptGenFromImage:
 
             track_processing_stats(processing_stats, "total", int((time.time()-start)*1000))
             
-        self.last_prompt_gen = (out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l)
+        self.last_prompt_gen = [out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l]
         
         return (out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l, json.dumps(processing_stats))
 
