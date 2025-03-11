@@ -240,6 +240,7 @@ class Florence2RunPromptGenFromImage:
         self.last_prompt_gen = []
         self.device = mm.get_torch_device()
         self.offload_device = mm.unet_offload_device()
+        self.processing_stats = {}
         self.prompt_gen_prompts = {
             "analyze": "<ANALYZE>",
             "generate_tages": "<GENERATE_TAGS>",
@@ -318,7 +319,7 @@ class Florence2RunPromptGenFromImage:
     def encode(self, image, florence2_model, mode, task, keep_model_loaded=True, prefix_prompt="", append_to_prompt="", num_beams=1, max_new_tokens=1024, do_sample=True):
         
         if mode == "on task change" and self.skip_encode(image, task):
-            return self.last_prompt_gen.append(self.processing_stats)
+            return self.last_prompt_gen
         
         processor = florence2_model['processor']
         model = florence2_model['model']
@@ -326,7 +327,7 @@ class Florence2RunPromptGenFromImage:
         model.to(self.device)
         
         task_prompt = self.prompt_gen_prompts.get(task, '<CAPTION>')
-        print(image.shape)
+        #print(image.shape)
         if image.shape[3] < 5:
             image = image.permute(0, 3, 1, 2)
         
@@ -377,7 +378,7 @@ class Florence2RunPromptGenFromImage:
 
             track_processing_stats(processing_stats, "total", int((time.time()-start)*1000))
             
-        self.last_prompt_gen = [out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l]
+        self.last_prompt_gen = [out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l, ""]
         
         return (out_analyze_info, out_tags, out_caption, out_mixed_caption_t5, out_mixed_caption_clip_l, json.dumps(processing_stats))
 
