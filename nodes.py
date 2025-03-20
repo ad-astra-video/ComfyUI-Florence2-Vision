@@ -368,11 +368,13 @@ class Florence2RunPromptGenFromImage:
                 case 'generate_tags':
                     out_tags = clean_results
                 case 'mixed_caption':
-                    out_mixed_caption_t5 = clean_results
-                    out_mixed_caption_clip_l = clean_results
+                    result_split = clean_results.splitlines()
+                    out_mixed_caption_t5 = result_split[0]
+                    out_mixed_caption_clip_l = result_split[1]
                 case 'mixed_caption_plus':
-                    out_mixed_caption_t5 = clean_results
-                    out_mixed_caption_clip_l = clean_results 
+                    result_plit = clean_results.splitlines()
+                    out_mixed_caption_t5 = result_split[0] + "\n" + result_split[2]
+                    out_mixed_caption_clip_l = result_split[1]
                 case _:
                     out_caption = clean_results
 
