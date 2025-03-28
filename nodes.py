@@ -373,8 +373,9 @@ class Florence2RunPromptGenFromImage:
                     out_mixed_caption_clip_l = result_split[1]
                 case 'mixed_caption_plus':
                     result_plit = clean_results.splitlines()
-                    out_mixed_caption_t5 = result_split[0] + "\n" + result_split[2]
+                    out_mixed_caption_t5 = result_split[0]
                     out_mixed_caption_clip_l = result_split[1]
+                    out_analyze_info = result_split[2]
                 case _:
                     out_caption = clean_results
 
